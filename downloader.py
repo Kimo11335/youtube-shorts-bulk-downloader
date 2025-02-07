@@ -1,8 +1,8 @@
 import os
 import yt_dlp
 import time
-from threading import Thread
 import random
+from pathlib import Path
 
 def extract_shorts_playlist(channel_url):
     if '@' in channel_url:
@@ -24,6 +24,7 @@ def get_short_links(channel_url, progress_var, progress_label_var, max_videos=No
         'extract_flat': True,
         'no_warnings': True,
         'ignore_no_formats_error': True,
+        'age_limit': 99
     }
 
     if max_videos:
@@ -58,23 +59,37 @@ def update_progress(progress_var, value):
     except Exception:
         print(f"Progress update error: {value}")
 
+class DownloadLogger:
+    def debug(self, msg):
+        if msg.startswith('[download] Destination:'):
+            self.filename = msg.split('Destination: ')[1]
+    
+    def warning(self, msg):
+        pass
+    
+    def error(self, msg):
+        pass
+
 def download_single_video(link, output_path):
+    logger = DownloadLogger()
+    ydl_opts = {
+        'format': 'mp4',
+        'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+        'no_warnings': True,
+        'logger': logger,
+        'progress_hooks': [],
+        'age_limit': 99
+    }
+    
     try:
-        ydl_opts = {
-            'quiet': True,
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
-            'no_warnings': True,
-            'ignoreerrors': True,
-            'merge_output_format': 'mp4',
-        }
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([link])
-        return True
+            if hasattr(logger, 'filename') and os.path.exists(logger.filename):
+                return True, logger.filename
+        return False, None
     except Exception as e:
         print(f"Error downloading video: {str(e)}")
-        return False
+        return False, None
 
 def download_videos_from_links(links, output_path, progress_var, progress_label_var, progress_callback=None):
     total_links = len(links)
@@ -86,15 +101,16 @@ def download_videos_from_links(links, output_path, progress_var, progress_label_
         try:
             update_label(progress_label_var, f"Downloading video {index}/{total_links}")
             
-            # Add random delay between downloads (2-5 seconds)
             time.sleep(random.uniform(2, 5))
             
-            success = download_single_video(link, output_path)
+            success, filepath = download_single_video(link, output_path)
             
-            if success:
+            if success and filepath:
                 successful_downloads += 1
                 update_label(progress_label_var, 
                     f"Downloaded video {index}/{total_links} (Success: {successful_downloads})")
+                if progress_callback:
+                    progress_callback(filepath)
             else:
                 update_label(progress_label_var, f"Skipped video {index}/{total_links} (unavailable)")
                 
@@ -105,7 +121,6 @@ def download_videos_from_links(links, output_path, progress_var, progress_label_
         finally:
             update_progress(progress_var, int((index / total_links) * 100))
             
-            # Add longer delay after every 10 videos
             if index % 10 == 0:
                 delay = random.uniform(15, 30)
                 update_label(progress_label_var, f"Rate limiting pause for {int(delay)} seconds...")
