@@ -76,7 +76,7 @@ def download_single_video(link, output_path):
         print(f"Error downloading video: {str(e)}")
         return False
 
-def download_videos_from_links(links, output_path, progress_var, progress_label_var):
+def download_videos_from_links(links, output_path, progress_var, progress_label_var, progress_callback=None):
     total_links = len(links)
     successful_downloads = 0
     
