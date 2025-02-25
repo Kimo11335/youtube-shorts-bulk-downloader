@@ -67,6 +67,9 @@ def run_gui():
         history_widget.add_entry(f"Downloaded: {filepath}")
 
     def on_start_button_click(folder_var, channel_listbox, progress_var, progress_label_var, history_widget, current_channel_var, max_videos=None):
+        from viral_analyzer import ViralAnalyzer
+        from config import YOUTUBE_API_KEY, MAX_VIDEOS_TO_ANALYZE, MAX_VIDEOS_TO_DOWNLOAD
+        
         output_directory = folder_var.get()
         if not output_directory:
             progress_label_var.set("Error: Please select a folder.")
@@ -104,14 +107,40 @@ def run_gui():
                     progress_label_var.set(f"Error: Failed to create folder for {channel_name} - {e}")
                     continue
 
-                short_links = get_short_links(channel_url, progress_var, progress_label_var, max_videos=max_videos)
-                if not short_links:
-                    progress_label_var.set(f"Channel {index}: No videos found.")
+                # Use ViralAnalyzer instead of direct download
+                try:
+                    # Initialize the viral analyzer with progress tracking
+                    analyzer = ViralAnalyzer(YOUTUBE_API_KEY, progress_var, progress_label_var)
+                    
+                    # Analyze the channel to find viral videos
+                    progress_label_var.set(f"Analyzing viral potential for {channel_name}...")
+                    viral_videos = analyzer.analyze_channel(
+                        channel_url, 
+                        channel_folder, 
+                        max_videos=MAX_VIDEOS_TO_ANALYZE
+                    )
+                    
+                    if not viral_videos:
+                        progress_label_var.set(f"No viral videos found for {channel_name}")
+                        continue
+                    
+                    # Download the top viral videos
+                    progress_label_var.set(f"Downloading top {MAX_VIDEOS_TO_DOWNLOAD} viral videos for {channel_name}...")
+                    downloaded_paths = analyzer.download_viral_videos(
+                        viral_videos, 
+                        channel_folder, 
+                        limit=MAX_VIDEOS_TO_DOWNLOAD
+                    )
+                    
+                    # Update download history
+                    for path in downloaded_paths:
+                        custom_progress_callback(path)
+                    
+                    progress_label_var.set(f"Channel {index}: Downloaded {len(downloaded_paths)} viral videos.")
+                    
+                except Exception as e:
+                    progress_label_var.set(f"Error analyzing channel {channel_name}: {str(e)}")
                     continue
-
-                download_videos_from_links(short_links, channel_folder, progress_var, progress_label_var, 
-                                         progress_callback=custom_progress_callback)
-                progress_label_var.set(f"Channel {index} completed.")
 
                 if index < total_channels:
                     pause_time = random.randint(60, 300)
@@ -141,8 +170,10 @@ def run_gui():
 
     def schedule_download(folder_var, channel_listbox, progress_var, progress_label_var, history_widget, current_channel_var, next_run_label):
         def run_schedule():
-            on_start_button_click(folder_var, channel_listbox, progress_var, progress_label_var, 
-                                history_widget, current_channel_var, max_videos=11)
+            # Remove the immediate download call
+            # on_start_button_click(folder_var, channel_listbox, progress_var, progress_label_var, 
+            #                     history_widget, current_channel_var, max_videos=11)
+            
             next_run_time = datetime.now() + timedelta(hours=1)
             next_run_label.set(f"Next Run At: {next_run_time.strftime('%Y-%m-%d %H:%M:%S')}")
             

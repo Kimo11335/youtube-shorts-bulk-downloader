@@ -1,6 +1,7 @@
 ﻿# Sensitive data - NEVER commit these
 cookies.txt
 channels.txt
+local_config.py
 
 # Python
 __pycache__/

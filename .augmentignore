@@ -1,0 +1,8 @@
+# Sensitive files that should never be shared with Augment
+local_config.py
+**/local_config.py
+*api_key*
+*.env
+.env
+secrets.json
+credentials.json
