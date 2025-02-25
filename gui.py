@@ -68,7 +68,7 @@ def run_gui():
 
     def on_start_button_click(folder_var, channel_listbox, progress_var, progress_label_var, history_widget, current_channel_var, max_videos=None):
         from viral_analyzer import ViralAnalyzer
-        from config import YOUTUBE_API_KEY, MAX_VIDEOS_TO_ANALYZE, MAX_VIDEOS_TO_DOWNLOAD
+        from config import MAX_VIDEOS_TO_ANALYZE, MAX_VIDEOS_TO_DOWNLOAD
         
         output_directory = folder_var.get()
         if not output_directory:
@@ -107,10 +107,10 @@ def run_gui():
                     progress_label_var.set(f"Error: Failed to create folder for {channel_name} - {e}")
                     continue
 
-                # Use ViralAnalyzer instead of direct download
+                # Use ViralAnalyzer with yt-dlp approach
                 try:
                     # Initialize the viral analyzer with progress tracking
-                    analyzer = ViralAnalyzer(YOUTUBE_API_KEY, progress_var, progress_label_var)
+                    analyzer = ViralAnalyzer(progress_var=progress_var, progress_label_var=progress_label_var)
                     
                     # Analyze the channel to find viral videos
                     progress_label_var.set(f"Analyzing viral potential for {channel_name}...")
@@ -120,7 +120,7 @@ def run_gui():
                         max_videos=MAX_VIDEOS_TO_ANALYZE
                     )
                     
-                    if not viral_videos:
+                    if viral_videos.empty:
                         progress_label_var.set(f"No viral videos found for {channel_name}")
                         continue
                     
@@ -140,6 +140,7 @@ def run_gui():
                     
                 except Exception as e:
                     progress_label_var.set(f"Error analyzing channel {channel_name}: {str(e)}")
+                    traceback.print_exc()  # Print the full error for debugging
                     continue
 
                 if index < total_channels:

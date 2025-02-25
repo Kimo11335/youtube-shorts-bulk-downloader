@@ -75,3 +75,10 @@ If you see "FAILED download" messages, this could be due to:
 
 You can copy this entire content and replace what's currently in your README.md file. This includes the original API Key Setup section that you already have, plus the new Channel Management and Troubleshooting Downloads sections, as well as Features and Usage sections.
 
+
+
+CMD RUN
+cd C:\PythonProjects\youtube-shorts-bulk-downloader-1
+C:\Users\karee\AppData\Local\Programs\Python\Python313\python.exe main.py
+
+
