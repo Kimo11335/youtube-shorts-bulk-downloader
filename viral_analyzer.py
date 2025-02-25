@@ -277,14 +277,14 @@ class ViralAnalyzer:
         
         return top_shorts
     
-    def download_viral_videos(self, videos, output_folder, limit=50):
+    def download_viral_videos(self, videos, output_folder, limit=31):
         """
         Download the top viral videos.
         
         Args:
             videos (list): List of video data dictionaries
             output_folder (str): Folder to save videos
-            limit (int): Maximum number of videos to download
+            limit (int): Maximum number of videos to download (default: 31)
         
         Returns:
             list: Paths of downloaded videos
@@ -334,13 +334,14 @@ class ViralAnalyzer:
         self.update_label(f"Download complete. Successfully downloaded {len(downloaded_paths)}/{total_videos} videos")
         return downloaded_paths
     
-    def download_video(self, video_url, output_folder):
+    def download_video(self, video_url, output_folder, max_retries=5):
         """
-        Download a single YouTube video using yt-dlp.
+        Download a single video with exponential backoff for rate limits.
         
         Args:
             video_url (str): YouTube video URL
             output_folder (str): Folder to save the video
+            max_retries (int): Maximum number of retry attempts
         
         Returns:
             str: Path to downloaded file or None if failed
@@ -364,15 +365,30 @@ class ViralAnalyzer:
             'outtmpl': os.path.join(output_folder, '%(title)s.%(ext)s'),
             'no_warnings': True,
             'logger': logger,
-            'age_limit': 99
+            'age_limit': 99,
+            'overwrites': False,
+            'limit_rate': '1M',
+            'throttled_rate': '100K'
         }
         
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
-                if hasattr(logger, 'filename') and os.path.exists(logger.filename):
-                    return logger.filename
-            return None
-        except Exception as e:
-            self.update_label(f"Error downloading video: {str(e)}")
-            return None
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([video_url])
+                    if hasattr(logger, 'filename') and os.path.exists(logger.filename):
+                        return logger.filename
+                return None
+            except Exception as e:
+                error_message = str(e).lower()
+                if "rate limit" in error_message or "429" in error_message:
+                    retry_count += 1
+                    wait_time = 2 ** retry_count * 30  # Exponential backoff: 60s, 120s, 240s, etc.
+                    self.update_label(f"Rate limit hit. Waiting {wait_time} seconds before retry {retry_count}/{max_retries}...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"Error downloading video: {str(e)}")
+                    return None
+        
+        self.update_label(f"Failed to download after {max_retries} retries due to rate limiting")
+        return None

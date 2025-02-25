@@ -78,14 +78,41 @@ def download_single_video(link, output_path):
         'no_warnings': True,
         'logger': logger,
         'progress_hooks': [],
-        'age_limit': 99
+        'age_limit': 99,
+        'overwrites': False,  # Prevent overwriting existing files
+        # Rate limiting options
+        'limit_rate': '1M',
+        'sleep_interval': 5,
+        'max_sleep_interval': 30,
+        'sleep_interval_requests': 2,
+        'throttled_rate': '100K'
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Check if the file already exists before downloading
+            info = ydl.extract_info(link, download=False)
+            if info:
+                filename = ydl.prepare_filename(info)
+                if os.path.exists(filename):
+                    print(f"File already exists: {filename}")
+                    return True, filename
+            
+            # If file doesn't exist, proceed with download
             ydl.download([link])
             if hasattr(logger, 'filename') and os.path.exists(logger.filename):
                 return True, logger.filename
+        return False, None
+    except yt_dlp.utils.DownloadError as e:
+        error_message = str(e).lower()
+        if "already been downloaded" in error_message:
+            # Extract the filename from the error message if possible
+            print(f"File already downloaded: {error_message}")
+            return True, None  # Consider this a success
+        elif "rate limit" in error_message or "429" in error_message:
+            print(f"Rate limit error: {error_message}")
+        else:
+            print(f"Download error: {error_message}")
         return False, None
     except Exception as e:
         print(f"Error downloading video: {str(e)}")

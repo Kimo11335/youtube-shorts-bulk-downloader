@@ -22,4 +22,4 @@ if not YOUTUBE_API_KEY:
 MAX_VIDEOS_TO_ANALYZE = 100
 
 # Maximum number of viral videos to download
-MAX_VIDEOS_TO_DOWNLOAD = 50
+MAX_VIDEOS_TO_DOWNLOAD = 31
